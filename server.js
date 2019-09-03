@@ -17,16 +17,15 @@ io.sockets.on('connection', (socket) => {
         } else {
             rooms[data.roomId] = [data];
         }
+        io.sockets.emit('messageSent', rooms[data.roomId])
     })
-    socket.on('getInitialMessages', (data) => {
+    socket.on('getInitialMessages', (id) => {
         let response;
-        roomExistsdata(roomId) ? rooms[roomId] : [];
-        console.log(response)
-        socket.emit('initialMessagesProvided', response)
+        response = roomExists(id) ? rooms[id] : [];
+        io.sockets.emit('initialMessagesProvided', response)
     })
 
-})
-
-function roomExists(id) {
-    return rooms.hasOwnProperty(id);
-}
+    function roomExists (id) {
+        return rooms.hasOwnProperty(id);
+    }
+});
