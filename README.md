@@ -1,2 +1,2 @@
 # ForaTestBack
-## use ```node index``` to start an application.
+use ```node index``` to start an application.
