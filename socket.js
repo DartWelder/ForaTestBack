@@ -1,20 +1,23 @@
-import rooms from './rooms';
+import db from './db';
 import socket from 'socket.io';
 
-export function getIOInstance(server) {
+export function createIOInstance(server) {
     let io = socket().listen(server);
     io.sockets.on('connection', (socket) => {
         socket.on('addMessage', (data) => {
-            if (roomExists(data.roomId)) {
-                rooms[data.roomId].push(data);
+            var room = db.getRoomById(data.roomId);
+            if (!room) {
+                io.sockets.emit(`error-${data.roomId}`, 'Room doesn\'t exist');
+                return;
             } else {
-                rooms[data.roomId] = [data];
+                room.messages.push(data);
             }
-            io.sockets.emit('messageSent', rooms[data.roomId]);
+            io.sockets.emit('messageSent', room.messages);
         });
         socket.on('getInitialMessages', (id) => {
+            const room = db.getRoomById(id);
             let response;
-            response = roomExists(id) ? rooms[id] : [];
+            response = room ? room.messages : [];
             io.sockets.emit('initialMessagesProvided', response);
         });
         socket.on('isWriting', (data) => {
@@ -29,12 +32,34 @@ export function getIOInstance(server) {
                 user: data.user
             });
         });
-        socket.on('userIsLeavingRoom', (data) => {});
+        socket.on('userIsJoinedToRoom', (data) => {            
+            const room = db.getRoomById(data.roomId);
+            if (!room) {
+                io.sockets.emit(`error-${data.roomId}`, 'Room doesn\'t exist');
+                return;
+            }
+            const user = db.getUserById(data.user.userId);
+            if (!user) {
+                room.users.push(data.user);
+            }
+            io.sockets.emit(`userOnline-${data.roomId}`, room.users);
+        });
+        socket.on('userIsLeavingRoom', (data) => {
+            const room = db.getRoomById(data.roomId);
+            if (!room) {
+                return;
+            }            
+            const user = db.getUserById(data.roomId, data.user.userId);
+            if (user) {
+                db.deleteUser(room.id, user.userId);
+            }
+            io.sockets.emit(`userOnline-${data.roomId}`, room.users);
+        });
     });
 }
 
 let roomExists = (id) => {
-    return rooms.hasOwnProperty(id);
+    return db.roomExists(id);
 }
 
-export default getIOInstance;
+export default createIOInstance;
